@@ -8,6 +8,7 @@ use reqwest::header::{HeaderMap, HeaderName, HeaderValue, CONTENT_LENGTH, CONTEN
 use std::collections::HashMap;
 use std::fs::remove_file;
 use std::io::SeekFrom;
+use std::env;
 use std::path::Path;
 use std::sync::Arc;
 use std::time::Duration;
@@ -157,12 +158,16 @@ async fn download_async(
     input_headers: Option<HashMap<String, String>>,
     callback: Option<Py<PyAny>>,
 ) -> PyResult<()> {
+    let insecure = match env::var("HF_INSECURE") {
+        Ok(val) => val.to_lowercase() == "true",
+        Err(_) => false,
+    };
     let client = reqwest::Client::builder()
         // https://github.com/hyperium/hyper/issues/2136#issuecomment-589488526
         .http2_keep_alive_timeout(Duration::from_secs(15))
+        .danger_accept_invalid_certs(insecure)  // Ignores certificate errors
         .build()
         .unwrap();
-
     let mut headers = HeaderMap::new();
     if let Some(input_headers) = input_headers {
         for (k, v) in input_headers {
